@@ -1,12 +1,29 @@
+/*******************************************************************************
+ * Copyright 2011 Netflix
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ ******************************************************************************/
 package com.netflix.astyanax.thrift;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
 import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.thrift.KeyRange;
+import org.apache.cassandra.thrift.KeySlice;
 
 import com.google.common.collect.Iterables;
 import com.netflix.astyanax.model.ColumnFamily;
@@ -35,15 +52,26 @@ public class ThriftAllRowsImpl<K, C> implements Rows<K, C> {
             private org.apache.cassandra.thrift.KeySlice lastRow;
             private List<org.apache.cassandra.thrift.KeySlice> list = null;
             private Iterator<org.apache.cassandra.thrift.KeySlice> iter = null;
+            private boolean bContinueSearch = true;
+            private boolean bIgnoreTombstones = true;
 
             {
                 range = new KeyRange().setCount(query.getBlockSize()).setStart_token("0").setEnd_token("0");
+                
+                if (query.getIncludeEmptyRows() == null) {
+                    if (query.getPredicate().isSetSlice_range() && query.getPredicate().getSlice_range().getCount() == 0) {
+                        bIgnoreTombstones = false;
+                    }
+                }
+                else {
+                    bIgnoreTombstones = !query.getIncludeEmptyRows();
+                }
             }
 
             @Override
             public boolean hasNext() {
                 // Get the next block
-                if (iter == null || (!iter.hasNext() && list.size() == query.getBlockSize())) {
+                while (iter == null || (!iter.hasNext() && bContinueSearch)) {
                     if (lastRow != null) {
                         // Determine the start token for the next page
                         String token = partitioner.getToken(ByteBuffer.wrap(lastRow.getKey())).toString();
@@ -57,23 +85,49 @@ public class ThriftAllRowsImpl<K, C> implements Rows<K, C> {
                         }
                     }
 
-                    // Fetch the data
+                    // Get the next block of rows from cassandra, exit if none returned
                     list = query.getNextBlock(range);
                     if (list == null) {
                         return false;
                     }
+                    
+                    // Since we may trim tombstones set a flag indicating whether a complete
+                    // block was returned so we can know to try to fetch the next one
+                    bContinueSearch = (list.size() == query.getBlockSize());
+                    
+                    // Trim the list from tombstoned rows, i.e. rows with no columns
                     iter = list.iterator();
                     if (iter == null || !iter.hasNext()) {
                         return false;
                     }
-
-                    // If repeating last token then skip the first row in the
-                    // result
-                    if (lastRow != null && query.getRepeatLastToken() && iter.hasNext()) {
+                    
+                    if (query.getRepeatLastToken() && lastRow != null) {
                         iter.next();
+                        iter.remove();
                     }
-
-                    lastRow = Iterables.getLast(list);
+                    
+                    if (iter.hasNext()) {
+                        org.apache.cassandra.thrift.KeySlice currLastRow = Iterables.getLast(list);
+                        
+                        if (bIgnoreTombstones) {
+                            while (iter.hasNext()) {
+                                KeySlice row = iter.next();
+                                if (row.getColumns().isEmpty()) {
+                                    iter.remove();
+                                }
+                            }
+                        }
+                        
+                        // If repeating last token then skip the first row in the result
+                        if (currLastRow != null && query.getRepeatLastToken() && iter.hasNext()) {
+                            iter.next();
+                        }
+                        
+                        lastRow = currLastRow;
+                        
+                        // Get the iterator again
+                        iter = list.iterator();
+                    }
                 }
                 return iter.hasNext();
             }
@@ -110,6 +164,11 @@ public class ThriftAllRowsImpl<K, C> implements Rows<K, C> {
 
     @Override
     public Row<K, C> getRowByIndex(int i) {
+        throw new IllegalStateException();
+    }
+
+    @Override
+    public Collection<K> getKeys() {
         throw new IllegalStateException();
     }
 }

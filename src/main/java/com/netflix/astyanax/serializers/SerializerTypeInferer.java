@@ -32,10 +32,19 @@ public class SerializerTypeInferer {
             serializer = LongSerializer.get();
         }
         else if (value instanceof Integer) {
-            serializer = IntegerSerializer.get();
+            serializer = Int32Serializer.get();
         }
         else if (value instanceof Short) {
             serializer = ShortSerializer.get();
+        }
+        else if (value instanceof Byte) {
+            serializer = ByteSerializer.get();
+        }
+        else if (value instanceof Float) {
+            serializer = FloatSerializer.get();
+        }
+        else if (value instanceof Double) {
+            serializer = DoubleSerializer.get();
         }
         else if (value instanceof BigInteger) {
             serializer = BigIntegerSerializer.get();
@@ -52,6 +61,7 @@ public class SerializerTypeInferer {
         else if (value instanceof Date) {
             serializer = DateSerializer.get();
         }
+		// TODO: need what to select StringCoercibleSerilizer here?
         else {
             serializer = ObjectSerializer.get();
         }
@@ -73,10 +83,19 @@ public class SerializerTypeInferer {
             serializer = LongSerializer.get();
         }
         else if (valueClass.equals(Integer.class) || valueClass.equals(int.class)) {
-            serializer = IntegerSerializer.get();
+            serializer = Int32Serializer.get();
         }
         else if (valueClass.equals(Short.class) || valueClass.equals(short.class)) {
             serializer = ShortSerializer.get();
+        }
+        else if (valueClass.equals(Byte.class) || valueClass.equals(byte.class)) {
+            serializer = ByteSerializer.get();
+        }
+        else if (valueClass.equals(Float.class) || valueClass.equals(float.class)) {
+            serializer = FloatSerializer.get();
+        }
+        else if (valueClass.equals(Double.class) || valueClass.equals(double.class)) {
+            serializer = DoubleSerializer.get();
         }
         else if (valueClass.equals(Boolean.class) || valueClass.equals(boolean.class)) {
             serializer = BooleanSerializer.get();
@@ -90,11 +109,10 @@ public class SerializerTypeInferer {
         else if (valueClass.equals(Date.class)) {
             serializer = DateSerializer.get();
         }
-        else {
-            serializer = ObjectSerializer.get();
-        }
+		if (serializer == null) {
+           	serializer = ObjectSerializer.get();
+		}
         // Add other serializers here
-
         return serializer;
     }
 }

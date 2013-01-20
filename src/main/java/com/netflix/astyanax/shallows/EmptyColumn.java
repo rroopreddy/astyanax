@@ -51,6 +51,16 @@ public class EmptyColumn<C> implements Column<C> {
     }
 
     @Override
+    public byte getByteValue() {
+        throw new UnsupportedOperationException();
+    }
+    
+    @Override
+    public short getShortValue() {
+        throw new UnsupportedOperationException();
+    }
+    
+    @Override
     public int getIntegerValue() {
         throw new UnsupportedOperationException();
     }
@@ -91,6 +101,11 @@ public class EmptyColumn<C> implements Column<C> {
     }
 
     @Override
+    public float getFloatValue() {
+        throw new UnsupportedOperationException();
+    }
+    
+    @Override
     public double getDoubleValue() {
         throw new UnsupportedOperationException();
     }
@@ -104,4 +119,10 @@ public class EmptyColumn<C> implements Column<C> {
     public int getTtl() {
         throw new UnsupportedOperationException();
     }
+
+    @Override
+    public boolean hasValue() {
+        return false;
+    }
+
 }

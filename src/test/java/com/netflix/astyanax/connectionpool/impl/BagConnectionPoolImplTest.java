@@ -1,18 +1,19 @@
 package com.netflix.astyanax.connectionpool.impl;
 
 import com.netflix.astyanax.connectionpool.ConnectionPool;
+import com.netflix.astyanax.connectionpool.ConnectionContext;
 import com.netflix.astyanax.connectionpool.ConnectionPoolConfiguration;
 import com.netflix.astyanax.connectionpool.Host;
 import com.netflix.astyanax.connectionpool.Operation;
 import com.netflix.astyanax.connectionpool.OperationResult;
 import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
 import com.netflix.astyanax.connectionpool.exceptions.OperationException;
-import com.netflix.astyanax.fake.TestClient;
-import com.netflix.astyanax.fake.TestConnectionFactory;
-import com.netflix.astyanax.fake.TestConstants;
-import com.netflix.astyanax.fake.TestHostType;
-import com.netflix.astyanax.fake.TestOperation;
 import com.netflix.astyanax.retry.RunOnce;
+import com.netflix.astyanax.test.TestClient;
+import com.netflix.astyanax.test.TestConnectionFactory;
+import com.netflix.astyanax.test.TestConstants;
+import com.netflix.astyanax.test.TestHostType;
+import com.netflix.astyanax.test.TestOperation;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -28,6 +29,7 @@ public class BagConnectionPoolImplTest extends BaseConnectionPoolTest {
     protected ConnectionPool<TestClient> createPool() {
         ConnectionPoolConfiguration config = new ConnectionPoolConfigurationImpl(
                 TestConstants.CLUSTER_NAME + "_" + TestConstants.KEYSPACE_NAME);
+        config.initialize();
 
         CountingConnectionPoolMonitor monitor = new CountingConnectionPoolMonitor();
         ConnectionPool<TestClient> pool = new BagOfConnectionsConnectionPoolImpl<TestClient>(
@@ -46,6 +48,7 @@ public class BagConnectionPoolImplTest extends BaseConnectionPoolTest {
 
         ConnectionPoolConfigurationImpl config = new ConnectionPoolConfigurationImpl(
                 TestConstants.CLUSTER_NAME + "_" + TestConstants.KEYSPACE_NAME);
+        config.initialize();
 
         ConnectionPool<TestClient> pool = new BagOfConnectionsConnectionPoolImpl<TestClient>(
                 config, new TestConnectionFactory(config, monitor), monitor);
@@ -60,7 +63,7 @@ public class BagConnectionPoolImplTest extends BaseConnectionPoolTest {
             result = pool.executeWithFailover(new TestOperation() {
 
                 @Override
-                public String execute(TestClient client)
+                public String execute(TestClient client, ConnectionContext context)
                         throws ConnectionException, OperationException {
                     throw new RuntimeException("Unkecked Exception");
                 }
@@ -81,6 +84,9 @@ public class BagConnectionPoolImplTest extends BaseConnectionPoolTest {
         ConnectionPoolConfigurationImpl config = new ConnectionPoolConfigurationImpl(
                 TestConstants.CLUSTER_NAME + "_" + TestConstants.KEYSPACE_NAME);
         config.setInitConnsPerHost(0);
+        config.initialize();
+
+        
         ConnectionPool<TestClient> pool = new BagOfConnectionsConnectionPoolImpl<TestClient>(
                 config, new TestConnectionFactory(config, monitor), monitor);
 
@@ -116,6 +122,8 @@ public class BagConnectionPoolImplTest extends BaseConnectionPoolTest {
         ConnectionPoolConfigurationImpl config = new ConnectionPoolConfigurationImpl(
                 TestConstants.CLUSTER_NAME + "_" + TestConstants.KEYSPACE_NAME);
         config.setInitConnsPerHost(0);
+        config.initialize();
+
         ConnectionPool<TestClient> pool = new BagOfConnectionsConnectionPoolImpl<TestClient>(
                 config, new TestConnectionFactory(config, monitor), monitor);
 

@@ -50,6 +50,16 @@ public class ThriftCounterSuperColumnImpl<C> implements Column<C> {
     }
 
     @Override
+    public byte getByteValue() {
+        throw new UnsupportedOperationException("CounterSuperColumn \'" + this.name + "\' has no value");
+    }
+    
+    @Override
+    public short getShortValue() {
+        throw new UnsupportedOperationException("CounterSuperColumn \'" + this.name + "\' has no value");
+    }
+    
+    @Override
     public int getIntegerValue() {
         throw new UnsupportedOperationException("CounterSuperColumn \'" + this.name + "\' has no value");
     }
@@ -100,6 +110,11 @@ public class ThriftCounterSuperColumnImpl<C> implements Column<C> {
     }
 
     @Override
+    public float getFloatValue() {
+        throw new UnsupportedOperationException("CounterSuperColumn \'" + this.name + "\' has no value");
+    }
+    
+    @Override
     public double getDoubleValue() {
         throw new UnsupportedOperationException("CounterSuperColumn \'" + this.name + "\' has no value");
     }
@@ -112,5 +127,10 @@ public class ThriftCounterSuperColumnImpl<C> implements Column<C> {
     @Override
     public int getTtl() {
         throw new UnsupportedOperationException("CounterSuperColumn \'" + this.name + "\' has no ttl");
+    }
+
+    @Override
+    public boolean hasValue() {
+        return false;
     }
 }

@@ -16,6 +16,7 @@
 package com.netflix.astyanax;
 
 import java.util.List;
+import java.util.Map;
 
 import com.netflix.astyanax.connectionpool.Operation;
 import com.netflix.astyanax.connectionpool.OperationResult;
@@ -23,6 +24,7 @@ import com.netflix.astyanax.connectionpool.TokenRange;
 import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
 import com.netflix.astyanax.connectionpool.exceptions.OperationException;
 import com.netflix.astyanax.ddl.KeyspaceDefinition;
+import com.netflix.astyanax.ddl.SchemaChangeResult;
 import com.netflix.astyanax.model.ColumnFamily;
 import com.netflix.astyanax.query.ColumnFamilyQuery;
 import com.netflix.astyanax.retry.RetryPolicy;
@@ -38,30 +40,46 @@ import com.netflix.astyanax.serializers.UnknownComparatorException;
 public interface Keyspace {
     /**
      * Return the configuration object used to set up this keyspace
-     * 
-     * @return
      */
     AstyanaxConfiguration getConfig();
 
     /**
      * Returns keyspace name
-     * 
-     * @return
      */
     String getKeyspaceName();
 
     /**
-     * Get a list of all tokens and their endpoints
-     * 
-     * @return
+     * Describe the partitioner used by the cluster
+     * @throws ConnectionException
+     */
+    String describePartitioner() throws ConnectionException;
+
+    /**
+     * Get a list of all tokens and their endpoints.  This call will return this list of ALL nodes
+     * in the cluster, including other regions.  If you are only interested in the subset of
+     * nodes for a specific region then use describeRing(dc);
      * @throws ConnectionException
      */
     List<TokenRange> describeRing() throws ConnectionException;
 
     /**
+     * Get a list of all tokens and their endpoints for a specific dc only.
+     * 
+     * @param dc - null for all dcs
+     * @throws ConnectionException
+     */
+    List<TokenRange> describeRing(String dc) throws ConnectionException;
+    
+    /**
+     * Get a list of tokens and their endpoints for a specific dc/rack combination.
+     * @param dc
+     * @throws ConnectionException
+     */
+    List<TokenRange> describeRing(String dc, String rack) throws ConnectionException;
+
+    /**
      * Describe the ring but use the last locally cached version if available.
      * @param cached
-     * @return
      * @throws ConnectionException
      */
     List<TokenRange> describeRing(boolean cached) throws ConnectionException;
@@ -69,7 +87,6 @@ public interface Keyspace {
     /**
      * Return a complete description of the keyspace and its column families
      * 
-     * @return
      * @throws ConnectionException
      */
     KeyspaceDefinition describeKeyspace() throws ConnectionException;
@@ -81,7 +98,6 @@ public interface Keyspace {
      * 
      * @param columnFamily
      * @param ignoreErrors
-     * @return
      * @throws ConnectionException
      */
     SerializerPackage getSerializerPackage(String cfName, boolean ignoreErrors) throws ConnectionException,
@@ -91,8 +107,6 @@ public interface Keyspace {
      * Prepare a batch mutation object. It is possible to create multiple batch
      * mutations and later merge them into a single mutation by calling
      * mergeShallow on a batch mutation object.
-     * 
-     * @return
      * @throws ConnectionException
      */
     MutationBatch prepareMutationBatch();
@@ -108,7 +122,6 @@ public interface Keyspace {
      *            Column family to be used for the query. The key and column
      *            serializers in the ColumnFamily are automatically used while
      *            constructing the query and the response.
-     * @return
      */
     <K, C> ColumnFamilyQuery<K, C> prepareQuery(ColumnFamily<K, C> cf);
 
@@ -118,7 +131,6 @@ public interface Keyspace {
      * @param <K>
      * @param <C>
      * @param columnFamily
-     * @return
      */
     <K, C> ColumnMutation prepareColumnMutation(ColumnFamily<K, C> columnFamily, K rowKey, C column);
 
@@ -128,19 +140,26 @@ public interface Keyspace {
      * @param <K>
      * @param <C>
      * @param columnFamily
-     * @return
      * @throws ConnectionException
      * @throws OperationException
      */
     <K, C> OperationResult<Void> truncateColumnFamily(ColumnFamily<K, C> columnFamily) throws OperationException,
             ConnectionException;
+    
+    /**
+     * Delete all rows in a column family
+     * 
+     * @param columnFamily
+     * @throws ConnectionException
+     * @throws OperationException
+     */
+    OperationResult<Void> truncateColumnFamily(String columnFamily) throws ConnectionException;
 
     /**
      * This method is used for testing purposes only. It is used to inject
      * errors in the connection pool.
      * 
      * @param operation
-     * @return
      * @throws ConnectionException
      */
     OperationResult<Void> testOperation(Operation<?, ?> operation) throws ConnectionException;
@@ -150,9 +169,69 @@ public interface Keyspace {
      * errors in the connection pool.
      * 
      * @param operation
-     * @return
      * @throws ConnectionException
      */
     OperationResult<Void> testOperation(Operation<?, ?> operation, RetryPolicy retry) throws ConnectionException;
 
+    /**
+     * Create a column family in this keyspace
+     * 
+     * @param columnFamily
+     * @param options - For list of options see http://www.datastax.com/docs/1.0/configuration/storage_configuration
+     */
+    <K, C>  OperationResult<SchemaChangeResult> createColumnFamily(ColumnFamily<K, C> columnFamily, Map<String, Object> options) throws ConnectionException ;
+    
+    /**
+     * Create a column family from the provied options
+     * @param options - For list of options see http://www.datastax.com/docs/1.0/configuration/storage_configuration
+     * @throws ConnectionException
+     */
+    <K, C>  OperationResult<SchemaChangeResult> createColumnFamily(Map<String, Object> options) throws ConnectionException ;
+    
+    /**
+     * Update the column family in cassandra
+     * 
+     * @param columnFamily
+     * @param options - For list of options see http://www.datastax.com/docs/1.0/configuration/storage_configuration
+     */
+    <K, C>  OperationResult<SchemaChangeResult> updateColumnFamily(ColumnFamily<K, C> columnFamily, Map<String, Object> options) throws ConnectionException ;
+    
+    /**
+     * Drop a column family from this keyspace
+     * @param columnFamilyName
+     */
+    OperationResult<SchemaChangeResult> dropColumnFamily(String columnFamilyName) throws ConnectionException ;
+    
+    /**
+     * Drop a column family from this keyspace 
+     * @param columnFamily
+     */
+    <K, C>  OperationResult<SchemaChangeResult> dropColumnFamily(ColumnFamily<K, C> columnFamily) throws ConnectionException ;
+    
+    /**
+     * Create the keyspace in cassandra.  This call will only create the keyspace and not 
+     * any column families.  Once the keyspace has been created then call createColumnFamily
+     * for each CF you want to create.
+     * @param options - For list of options see http://www.datastax.com/docs/1.0/configuration/storage_configuration
+     */
+    OperationResult<SchemaChangeResult> createKeyspace(Map<String, Object> options) throws ConnectionException ;
+    
+    /**
+     * Update the keyspace in cassandra.
+     * @param options - For list of options see http://www.datastax.com/docs/1.0/configuration/storage_configuration
+     */
+    OperationResult<SchemaChangeResult> updateKeyspace(Map<String, Object> options) throws ConnectionException ;
+    
+    /**
+     * Drop this keyspace from cassandra
+     */
+    OperationResult<SchemaChangeResult> dropKeyspace() throws ConnectionException ;
+
+    /**
+     * List all schema versions in the cluster.  Under normal conditions there
+     * should only be one schema.  
+     * @return
+     * @throws ConnectionException
+     */
+    Map<String, List<String>> describeSchemaVersions() throws ConnectionException;
 }
