@@ -1,9 +1,7 @@
 package com.netflix.astyanax;
 
-import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
 
@@ -52,7 +50,7 @@ public class AstyanaxContext<Entity> {
         protected String clusterName;
         protected String keyspaceName;
         protected KeyspaceTracerFactory tracerFactory = EmptyKeyspaceTracerFactory.getInstance();
-        protected Supplier<Map<BigInteger, List<Host>>> hostSupplier;
+        protected Supplier<List<Host>> hostSupplier;
         protected ConnectionPoolMonitor monitor = new CountingConnectionPoolMonitor();
 
         public Builder forCluster(String clusterName) {
@@ -75,8 +73,8 @@ public class AstyanaxContext<Entity> {
             return this;
         }
 
-        public Builder withHostSupplier(Supplier<Map<BigInteger, List<Host>>> tokenRangeSupplier) {
-            this.hostSupplier = tokenRangeSupplier;
+        public Builder withHostSupplier(Supplier<List<Host>> supplier) {
+            this.hostSupplier = supplier;
             return this;
         }
 
@@ -131,13 +129,15 @@ public class AstyanaxContext<Entity> {
         }
 
         public <T> AstyanaxContext<Keyspace> buildKeyspace(AstyanaxTypeFactory<T> factory) {
-            ConnectionPool<T> cp = createConnectionPool(factory.createConnectionFactory(cpConfig, tracerFactory,
+            this.cpConfig.initialize();
+            
+            ConnectionPool<T> cp = createConnectionPool(factory.createConnectionFactory(asConfig, cpConfig, tracerFactory,
                     monitor));
             this.cp = cp;
 
             final Keyspace keyspace = factory.createKeyspace(keyspaceName, cp, asConfig, tracerFactory);
 
-            Supplier<Map<BigInteger, List<Host>>> supplier = null;
+            Supplier<List<Host>> supplier = null;
 
             switch (getNodeDiscoveryType()) {
             case DISCOVERY_SERVICE:
@@ -146,15 +146,15 @@ public class AstyanaxContext<Entity> {
                 break;
 
             case RING_DESCRIBE:
-                supplier = new RingDescribeHostSupplier(keyspace, cpConfig.getPort());
+                supplier = new RingDescribeHostSupplier(keyspace, cpConfig.getPort(), cpConfig.getLocalDatacenter());
                 break;
 
             case TOKEN_AWARE:
                 if (hostSupplier == null) {
-                    supplier = new RingDescribeHostSupplier(keyspace, cpConfig.getPort());
+                    supplier = new RingDescribeHostSupplier(keyspace, cpConfig.getPort(), cpConfig.getLocalDatacenter());
                 }
                 else {
-                    supplier = new FilteringHostSupplier(new RingDescribeHostSupplier(keyspace, cpConfig.getPort()),
+                    supplier = new FilteringHostSupplier(new RingDescribeHostSupplier(keyspace, cpConfig.getPort(), cpConfig.getLocalDatacenter()),
                             hostSupplier);
                 }
                 break;
@@ -173,7 +173,9 @@ public class AstyanaxContext<Entity> {
         }
 
         public <T> AstyanaxContext<Cluster> buildCluster(AstyanaxTypeFactory<T> factory) {
-            ConnectionPool<T> cp = createConnectionPool(factory.createConnectionFactory(cpConfig, tracerFactory,
+            this.cpConfig.initialize();
+            
+            ConnectionPool<T> cp = createConnectionPool(factory.createConnectionFactory(asConfig, cpConfig, tracerFactory,
                     monitor));
             this.cp = cp;
 

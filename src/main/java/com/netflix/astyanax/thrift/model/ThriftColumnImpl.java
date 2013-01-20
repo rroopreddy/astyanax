@@ -24,11 +24,14 @@ import com.netflix.astyanax.model.Column;
 import com.netflix.astyanax.model.ColumnList;
 import com.netflix.astyanax.serializers.BooleanSerializer;
 import com.netflix.astyanax.serializers.ByteBufferSerializer;
+import com.netflix.astyanax.serializers.ByteSerializer;
 import com.netflix.astyanax.serializers.BytesArraySerializer;
 import com.netflix.astyanax.serializers.DateSerializer;
 import com.netflix.astyanax.serializers.DoubleSerializer;
+import com.netflix.astyanax.serializers.FloatSerializer;
 import com.netflix.astyanax.serializers.IntegerSerializer;
 import com.netflix.astyanax.serializers.LongSerializer;
+import com.netflix.astyanax.serializers.ShortSerializer;
 import com.netflix.astyanax.serializers.StringSerializer;
 import com.netflix.astyanax.serializers.UUIDSerializer;
 
@@ -65,6 +68,16 @@ public class ThriftColumnImpl<C> implements Column<C> {
         return StringSerializer.get().fromBytes(column.getValue());
     }
 
+    @Override
+    public byte getByteValue() {
+        return ByteSerializer.get().fromBytes(column.getValue());
+    }
+    
+    @Override
+    public short getShortValue() {
+        return ShortSerializer.get().fromBytes(column.getValue());
+    }
+    
     @Override
     public int getIntegerValue() {
         return IntegerSerializer.get().fromBytes(column.getValue());
@@ -112,6 +125,11 @@ public class ThriftColumnImpl<C> implements Column<C> {
     }
 
     @Override
+    public float getFloatValue() {
+        return FloatSerializer.get().fromBytes(column.getValue());
+    }
+    
+    @Override
     public double getDoubleValue() {
         return DoubleSerializer.get().fromBytes(column.getValue());
     }
@@ -131,4 +149,8 @@ public class ThriftColumnImpl<C> implements Column<C> {
         return column.isSetTtl() ? column.getTtl() : 0;
     }
 
+    @Override
+    public boolean hasValue() {
+        return column.value != null && column.value.remaining() != 0;
+    }
 }
